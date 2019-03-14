@@ -2,6 +2,7 @@ class Transition:
     name = None
     start = None
     end = None
+    is_epsilon = False
 
     def __init__(self, name):
         self.name = name
