@@ -7,7 +7,7 @@ from classes.transition import Transition
 
 
 def export_to_file(automat):
-    output_path = 'output/DKA.fsa'
+    output_path = 'output/DKA.txt'
     with open(output_path, 'x') as file:
         file.write(str(automat.num_of_states) + '\n')
         file.write(str(automat.num_of_transitions) + '\n')
@@ -67,30 +67,105 @@ def load_file(filename):
     return automat
 
 
+def process_nka_to_dka2(nka_automat):
+    print()
+    dka_automat = Automat()
+    dka_automat.convert_from_nfa(nka_automat)
+
+
 def process_nka_to_dka(nka_automat):
     # TODO
     print()
     dka_automat = Automat()
     arr_process = []
-    arr_transitions = nka_automat.get_get_unique_list_of_transitions()
+    arr_transitions = nka_automat.get_unique_list_of_transitions()
     arr_tmp = ['states/transitions']
     arr_tmp.extend(arr_transitions)
-    arr_tmp_states  = []
+    dict_tmp_states = {}
+    for element in nka_automat.get_unique_list_of_states():
+        dict_tmp_states[element] = element
+    key = ''.join(nka_automat.get_unique_list_of_states())
     arr_process.append(arr_tmp)
-    for i in range(0, np.inf):
-        # TODO funkcia ktorej das stav a transition a ona zisti kam sa vies dostat
+    for i in range(0, 100000):
+        keys = list(dict_tmp_states.keys())
         for j in range(0, len(arr_transitions)):
-            arr_tmp.append(nka_automat.get_states_for_nka_processing())
-            arr_tmp.append([nka_automat])
-        print()
+            states = []
+            key_tmp = keys[i]
+            tran_tmp = arr_transitions[j]
+            states = nka_automat.get_states_for_nka_processing(dict_tmp_states[keys[i]], arr_transitions[j])
+            if len(states) > 0:
+                key = tuple(states)
+                # key = ''.join(states)
+                if key not in dict_tmp_states:
+                    dict_tmp_states[key] = states
+
+
+def process_nka_to_dka3(nka_auto):
+    print()
+    arr_trans = nka_auto.get_unique_list_of_transitions()
+    arr_symbols = nka_auto.get_unique_list_of_states()
+    arr_states = nka_auto.get_unique_list_of_states()
+    arr_process = []
+    for i in range(0, 100000):
+        tmp_states = []
+        for j in range(0, len(arr_states)):
+            try:
+                states = nka_auto.get_states_for_nka_processing(arr_symbols[i], arr_trans[j])
+                if len(states) > 1:
+                    tmp_states.append(tuple(states))
+                    if not tuple(states) in arr_symbols:
+                        arr_symbols.append(tuple(states))
+                elif len(states) == 1:
+                    tmp_states.append(tuple(states))
+                    if not states[0] in arr_symbols:
+                        arr_symbols.append(states[0])
+            except IndexError:
+                arr_process.append(tmp_states)
+                create_dka_automat_from_tables(arr_process,arr_symbols,arr_trans,nka_auto)
+
+        arr_process.append(tmp_states)
+
+
+def create_dka_automat_from_tables(process, symbols, transitions, nka_auto):
+    dka_auto = Automat()
+    arr_end_states = nka_auto.get_end_states()
+    arr_start_states = nka_auto.get_start_states()
+    dka_auto.num_of_states = len(symbols)
+    dka_auto.num_of_transitions = len(transitions)
+
+    for it, symbol in enumerate(symbols):
+        for j in range(0, len(transitions)):
+            dka_auto.states.append(symbol)
+            state = State(symbols[it][j])
+
+            if any(elem in symbols[it] for elem in arr_start_states):
+                state.is_start = True
+            if any(elem in symbols[it] for elem in arr_end_states):
+                state.is_final = True
+            if len(process[it][j]) > 1:
+                for elem in process[it][j]:
+                    trans = Transition(transitions[j])
+                    trans.set_start(state.name)
+                    trans.set_end(elem)
+                    dka_auto.transitions.append(trans)
+            elif len(process[it][j]) == 1:
+                trans = Transition(transitions[j])
+                trans.set_start(state.name)
+                trans.set_end(process[it][j][0])
+                dka_auto.transitions.append(trans)
 
 
 def main():
     # path = input("Write path to file: ")
-    path = "input/nka1.fsa"
-    automat = load_file(path)
-    export_to_file(automat)
+    path = "input/nka1.txt"
+    nka_automat = load_file(path)
+    # process_nka_to_dka2(nka_automat)
+    process_nka_to_dka3(nka_automat)
+    # process_nka_to_dka(nka_automat)
+    export_to_file(nka_automat)
+
     print()
+
     # file.write(str() + '\n')
 
 
