@@ -1,4 +1,6 @@
 import numpy as np
+
+
 class Automat:
     states = []
     transitions = []
@@ -7,7 +9,11 @@ class Automat:
     q = []
 
     def __init__(self):
-        pass
+        self.states = []
+        self.transitions = []
+        self.num_of_transitions = 0
+        self.num_of_states = 0
+        self.q = []
 
     def get_unique_list_of_states(self):
         arr = []
@@ -18,22 +24,36 @@ class Automat:
     def get_unique_list_of_transitions(self):
         arr = []
         for transition in self.transitions:
-            arr.append(transition.name)
-        return list(set(arr))
+            if not transition.name == "E":
+                arr.append(transition.name)
+        return sorted(list(set(arr)))
 
-    def get_states_for_nka_processing(self, state_name, transition_name):
+    def get_start_with_epsilon(self):
+        arr_end_states = []
+        start = self.get_start_state()
+        arr_end_states.append(start)
+        for transition in self.transitions:
+            if transition.start == start and transition.is_epsilon:
+                arr_end_states.append(transition.end)
+        if len(arr_end_states) > 0:
+            return tuple(arr_end_states)
+        else:
+            return start
+
+    def closure(self, state_name, transition_name, i):
         arr_end_states = []
         if isinstance(state_name, tuple):
             for state in state_name:
                 for transition in self.transitions:
-                    if transition.name == transition_name and transition.start == state:
+                    if (transition.name == transition_name or (
+                            transition.is_epsilon and i != 0)) and transition.start == state:
                         arr_end_states.append(transition.end)
         else:
             for transition in self.transitions:
-                if transition.name == transition_name and transition.start == state_name:
+                if (transition.name == transition_name or transition.is_epsilon) and transition.start == state_name:
                     arr_end_states.append(transition.end)
         arr_end_states = list(set(arr_end_states))
-        return arr_end_states
+        return sorted(arr_end_states)
 
     def get_start_state(self):
         for state in self.states:
@@ -47,12 +67,30 @@ class Automat:
                 states.append(state.name)
         return states
 
+    def get_start_state(self):
+        for state in self.states:
+            if state.is_start:
+                return state.name
+
     def get_start_states(self):
         states = []
         for state in self.states:
             if state.is_start:
                 states.append(state.name)
         return states
+
+    def get_transition_for_state(self,state_name):
+        arr_transition = []
+        for transition in self.transitions:
+            if transition.start == state_name:
+                arr_transition.append(transition)
+        return arr_transition
+
+    def check_if_state_is_final(self, name):
+        for state in self.states:
+            if state.name == name and state.is_final:
+                return True
+        return False
 
     def convert_from_nfa(self, nfa):
         self.transitions = nfa.transition

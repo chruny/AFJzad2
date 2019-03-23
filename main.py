@@ -1,5 +1,6 @@
 import sys
 import numpy as np
+import os
 
 from classes.automat import Automat
 from classes.state import State
@@ -7,8 +8,8 @@ from classes.transition import Transition
 
 
 def export_to_file(automat):
-    output_path = 'output/DKA.txt'
-    with open(output_path, 'x') as file:
+    output_path = 'DKA.txt'
+    with open(output_path, 'w') as file:
         file.write(str(automat.num_of_states) + '\n')
         file.write(str(automat.num_of_transitions) + '\n')
         for state in automat.states:
@@ -56,7 +57,7 @@ def load_file(filename):
                 transition = Transition(line[0])
                 # automat.transitions.append(transition)
             elif 2 + automat.num_of_states + automat.num_of_transitions <= i:
-                if line2[1] == " ":
+                if line2[1] == "":
                     transition = Transition("E")
                     transition.is_epsilon = True
                 else:
@@ -67,107 +68,103 @@ def load_file(filename):
     return automat
 
 
-def process_nka_to_dka2(nka_automat):
-    print()
-    dka_automat = Automat()
-    dka_automat.convert_from_nfa(nka_automat)
-
-
-def process_nka_to_dka(nka_automat):
-    # TODO
-    print()
-    dka_automat = Automat()
-    arr_process = []
-    arr_transitions = nka_automat.get_unique_list_of_transitions()
-    arr_tmp = ['states/transitions']
-    arr_tmp.extend(arr_transitions)
-    dict_tmp_states = {}
-    for element in nka_automat.get_unique_list_of_states():
-        dict_tmp_states[element] = element
-    key = ''.join(nka_automat.get_unique_list_of_states())
-    arr_process.append(arr_tmp)
-    for i in range(0, 100000):
-        keys = list(dict_tmp_states.keys())
-        for j in range(0, len(arr_transitions)):
-            states = []
-            key_tmp = keys[i]
-            tran_tmp = arr_transitions[j]
-            states = nka_automat.get_states_for_nka_processing(dict_tmp_states[keys[i]], arr_transitions[j])
-            if len(states) > 0:
-                key = tuple(states)
-                # key = ''.join(states)
-                if key not in dict_tmp_states:
-                    dict_tmp_states[key] = states
+def convert_tuple_to_string(tup_names):
+    names = ""
+    if isinstance(tup_names, tuple):
+        for name in tup_names:
+            names += name
+        return names
+    else:
+        return tup_names
 
 
 def process_nka_to_dka3(nka_auto):
-    print()
     arr_trans = nka_auto.get_unique_list_of_transitions()
-    arr_symbols = nka_auto.get_unique_list_of_states()
+    arr_symbols = [nka_auto.get_start_with_epsilon()]
     arr_states = nka_auto.get_unique_list_of_states()
     arr_process = []
+
     for i in range(0, 100000):
-        tmp_states = []
-        for j in range(0, len(arr_states)):
+        tmp_states2 = [None] * len(arr_trans)
+
+        for j in range(0, len(arr_trans)):
             try:
-                states = nka_auto.get_states_for_nka_processing(arr_symbols[i], arr_trans[j])
+                states = nka_auto.closure(arr_symbols[i], arr_trans[j],i)
                 if len(states) > 1:
-                    tmp_states.append(tuple(states))
+                    tmp_states2[j] = tuple(states)  # prerobenie na nove
                     if not tuple(states) in arr_symbols:
                         arr_symbols.append(tuple(states))
                 elif len(states) == 1:
-                    tmp_states.append(tuple(states))
+                    tmp_states2[j] = tuple(states)  # prerobenie na nove
                     if not states[0] in arr_symbols:
                         arr_symbols.append(states[0])
-            except IndexError:
-                arr_process.append(tmp_states)
-                create_dka_automat_from_tables(arr_process,arr_symbols,arr_trans,nka_auto)
+            except IndexError as e:
+                # arr_process.append(tmp_states2)
+                dka_auto = create_dka_automat_from_tables2(arr_process, arr_symbols, arr_trans, nka_auto)
+                return dka_auto
 
-        arr_process.append(tmp_states)
+        arr_process.append(tmp_states2)
+        # arr_process.append(tmp_states)
 
 
-def create_dka_automat_from_tables(process, symbols, transitions, nka_auto):
+
+def create_dka_automat_from_tables2(process, symbols, transitions, nka_auto):
     dka_auto = Automat()
-    arr_end_states = nka_auto.get_end_states()
-    arr_start_states = nka_auto.get_start_states()
     dka_auto.num_of_states = len(symbols)
     dka_auto.num_of_transitions = len(transitions)
 
     for it, symbol in enumerate(symbols):
-        for j in range(0, len(transitions)):
-            dka_auto.states.append(symbol)
-            state = State(symbols[it][j])
+        state = State(convert_tuple_to_string(symbol))
+        if isinstance(symbol, tuple):
+            for sym in symbol:
+                if nka_auto.check_if_state_is_final(sym):
+                    state.set_final()
+        else:
 
-            if any(elem in symbols[it] for elem in arr_start_states):
-                state.is_start = True
-            if any(elem in symbols[it] for elem in arr_end_states):
-                state.is_final = True
-            if len(process[it][j]) > 1:
-                for elem in process[it][j]:
-                    trans = Transition(transitions[j])
-                    trans.set_start(state.name)
-                    trans.set_end(elem)
-                    dka_auto.transitions.append(trans)
-            elif len(process[it][j]) == 1:
-                trans = Transition(transitions[j])
-                trans.set_start(state.name)
-                trans.set_end(process[it][j][0])
-                dka_auto.transitions.append(trans)
+            if nka_auto.check_if_state_is_final(symbol):
+                state.set_final()
+        if it == 0:
+            state.set_start()
+        dka_auto.states.append(state)
+    for it, tmp_trans in enumerate(transitions):
+        for j in range(len(symbols)):
+            transition = Transition(convert_tuple_to_string(tmp_trans))
+            transition.set_start(convert_tuple_to_string(symbols[j]))
+            transition.set_end(convert_tuple_to_string(process[j][it]))
+            if transition.end is not None:
+                dka_auto.transitions.append(transition)
+    return dka_auto
 
+def acceptance_of_word(dka_auto):
+    txt = input("Write a word with:")
+    state = dka_auto.get_start_state()
+    for i in range(0,len(txt)):
+        status = False
+        transitions = dka_auto.get_transition_for_state(state)
+        for transition in transitions:
+            if transition.name == txt[i]:
+                status = True
+                state = transition.end
+                pass
+        if status == False:
+            sys.stdout.write("NonAccepted")
+            print("NonAccepted")
+    if status==True:
+        sys.stdout.write("Accepted")
+        print("Accepted")
 
-def main():
-    # path = input("Write path to file: ")
-    path = "input/nka1.txt"
-    nka_automat = load_file(path)
-    # process_nka_to_dka2(nka_automat)
-    process_nka_to_dka3(nka_automat)
-    # process_nka_to_dka(nka_automat)
-    export_to_file(nka_automat)
-
-    print()
-
-    # file.write(str() + '\n')
+def main(path):
+    if os.path.exists(path):
+        nka_automat = load_file(path)
+        dka_auto = process_nka_to_dka3(nka_automat)
+        export_to_file(dka_auto)
+        acceptance_of_word(dka_auto)
 
 
 if __name__ == '__main__':
-    main()
+    if sys.argv[1] is not None:
+        path = sys.argv[1]
+    else:
+        sys.stdout.write("You forgot to add argument")
+
+    main(path)
