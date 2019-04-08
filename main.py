@@ -7,8 +7,8 @@ from classes.state import State
 from classes.transition import Transition
 
 
-def export_to_file(automat):
-    output_path = 'DKA.txt'
+def export_to_file(automat,output_path):
+    # output_path = 'output.txt'
     with open(output_path, 'w') as file:
         file.write(str(automat.num_of_states) + '\n')
         file.write(str(automat.num_of_transitions) + '\n')
@@ -89,7 +89,7 @@ def process_nka_to_dka3(nka_auto):
 
         for j in range(0, len(arr_trans)):
             try:
-                states = nka_auto.closure(arr_symbols[i], arr_trans[j],i)
+                states = nka_auto.closure(arr_symbols[i], arr_trans[j], i)
                 if len(states) > 1:
                     tmp_states2[j] = tuple(states)  # prerobenie na nove
                     if not tuple(states) in arr_symbols:
@@ -105,7 +105,6 @@ def process_nka_to_dka3(nka_auto):
 
         arr_process.append(tmp_states2)
         # arr_process.append(tmp_states)
-
 
 
 def create_dka_automat_from_tables2(process, symbols, transitions, nka_auto):
@@ -135,10 +134,11 @@ def create_dka_automat_from_tables2(process, symbols, transitions, nka_auto):
                 dka_auto.transitions.append(transition)
     return dka_auto
 
+
 def acceptance_of_word(dka_auto):
     txt = input("Write a word with:")
     state = dka_auto.get_start_state()
-    for i in range(0,len(txt)):
+    for i in range(0, len(txt)):
         status = False
         transitions = dka_auto.get_transition_for_state(state)
         for transition in transitions:
@@ -147,24 +147,26 @@ def acceptance_of_word(dka_auto):
                 state = transition.end
                 pass
         if status == False:
-            sys.stdout.write("NonAccepted")
             print("NonAccepted")
-    if status==True:
-        sys.stdout.write("Accepted")
+            return
+    if status == True:
         print("Accepted")
 
-def main(path):
+
+def main(path, path2):
     if os.path.exists(path):
         nka_automat = load_file(path)
         dka_auto = process_nka_to_dka3(nka_automat)
-        export_to_file(dka_auto)
+        export_to_file(dka_auto, path2)
         acceptance_of_word(dka_auto)
 
 
 if __name__ == '__main__':
-    if sys.argv[1] is not None:
-        path = sys.argv[1]
-    else:
-        sys.stdout.write("You forgot to add argument")
+    # if sys.argv[1] is not None and sys.argv[2] is not None:
+    #     path1 = sys.argv[1]
+    #     path2 = sys.argv[2]
+    # else:
+    #     sys.stdout.write("You forgot to add argument")
 
-    main(path)
+    main('nka5.txt','output.txt')
+    # main(path1, path2)

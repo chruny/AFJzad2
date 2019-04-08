@@ -32,22 +32,26 @@ class Automat:
         arr_end_states = []
         start = self.get_start_state()
         arr_end_states.append(start)
-        for transition in self.transitions:
-            if transition.start == start and transition.is_epsilon:
-                arr_end_states.append(transition.end)
+        for state in arr_end_states:
+            for transition in self.transitions:
+                if transition.start == state and transition.is_epsilon:
+                    arr_end_states.append(transition.end)
         if len(arr_end_states) > 0:
+            arr_end_states = list(set(arr_end_states))
             return tuple(arr_end_states)
         else:
             return start
 
     def closure(self, state_name, transition_name, i):
         arr_end_states = []
+        arr_end_states.append(state_name)
         if isinstance(state_name, tuple):
-            for state in state_name:
-                for transition in self.transitions:
-                    if (transition.name == transition_name or (
-                            transition.is_epsilon and i != 0)) and transition.start == state:
-                        arr_end_states.append(transition.end)
+            for tmp_state in arr_end_states:
+                for state in tmp_state:
+                    for transition in self.transitions:
+                        if (transition.name == transition_name or (
+                                transition.is_epsilon and i != 0)) and transition.start == state:
+                            arr_end_states.append(transition.end)
         else:
             for transition in self.transitions:
                 if (transition.name == transition_name or transition.is_epsilon) and transition.start == state_name:
@@ -55,7 +59,7 @@ class Automat:
         arr_end_states = list(set(arr_end_states))
         return sorted(arr_end_states)
 
-    def get_start_state(self):
+    def get_start_state_object(self):
         for state in self.states:
             if state.is_start:
                 return state
@@ -91,64 +95,3 @@ class Automat:
             if state.name == name and state.is_final:
                 return True
         return False
-
-    def convert_from_nfa(self, nfa):
-        self.transitions = nfa.transition
-        self.start_state = nfa.get_start_state()
-
-        nka_transition_dict = {}
-        dka_transition_dict = {}
-
-        # Combine NFA transitions
-        for transition in nfa.transitions:
-            starting_state = transition.start
-            transition_symbol = transition.name
-            ending_state = transition.end
-
-            if (starting_state, transition_symbol) in nka_transition_dict:
-                nka_transition_dict[(starting_state, transition_symbol)].append(ending_state)
-            else:
-                nka_transition_dict[(starting_state, transition_symbol)] = [ending_state]
-
-        self.q.append((0,))
-
-        # Convert NFA transitions to DFA transitions
-        for dfa_state in self.q:
-            for transition in nfa.transitions:
-                if len(dfa_state) == 1 and (dfa_state[0], transition) in nka_transition_dict:
-                    dka_transition_dict[(dfa_state, transition)] = nka_transition_dict[(dfa_state[0], transition)]
-
-                    if tuple(dka_transition_dict[(dfa_state, transition)]) not in self.q:
-                        self.q.append(tuple(dka_transition_dict[(dfa_state, transition)]))
-                else:
-                    destinations = []
-                    final_destination = []
-
-                    for nfa_state in dfa_state:
-                        if (nfa_state, transition) in nka_transition_dict and nka_transition_dict[
-                            (nfa_state, transition)] not in destinations:
-                            destinations.append(nka_transition_dict[(nfa_state, transition)])
-
-                    if not destinations:
-                        final_destination.append(None)
-                    else:
-                        for destination in destinations:
-                            for value in destination:
-                                if value not in final_destination:
-                                    final_destination.append(value)
-
-                    dka_transition_dict[(dfa_state, transition)] = final_destination
-
-                    if tuple(final_destination) not in self.q:
-                        self.q.append(tuple(final_destination))
-
-        # Convert NFA states to DFA states
-        for key in dka_transition_dict:
-            self.transition_functions.append(
-                (self.q.index(tuple(key[0])), key[1], self.q.index(tuple(dka_transition_dict[key]))))
-
-        for q_state in self.q:
-            for nfa_accepting_state in nfa.accepting_states:
-                if nfa_accepting_state in q_state:
-                    self.accepting_states.append(self.q.index(q_state))
-                    self.num_accepting_states += 1
